@@ -9,14 +9,18 @@ use futures::{select, FutureExt};
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 fn main() -> Result<()> {
-    task::block_on(try_run("127.0.0.1:8080"))
+    println!("Hello there! We're going to try to connect.");
+    task::block_on(try_run("142.129.113.141:1337"))
 }
 
 async fn try_run(addr: impl ToSocketAddrs) -> Result<()> {
     let stream = TcpStream::connect(addr).await?;
-    let (reader, mut writer) = (&stream, &stream); // 1
-    let mut lines_from_server = BufReader::new(reader).lines().fuse(); // 2
-    let mut lines_from_stdin = BufReader::new(stdin()).lines().fuse(); // 2
+    let (reader, mut writer) = (&stream, &stream);
+    let mut lines_from_server = BufReader::new(reader).lines().fuse();
+    let mut lines_from_stdin = BufReader::new(stdin()).lines().fuse();
+
+    println!("Please type your name and then hit enter:");
+
     loop {
         select! { // 3
             line = lines_from_server.next().fuse() => match line {

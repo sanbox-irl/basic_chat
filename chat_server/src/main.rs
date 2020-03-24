@@ -13,7 +13,7 @@ type Receiver<T> = mpsc::UnboundedReceiver<T>;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 fn main() -> Result<()> {
-    task::block_on(accept_loop("127.0.0.1:8080"))
+    task::block_on(accept_loop("192.168.1.19:1337"))
 }
 
 async fn accept_loop(addr: impl ToSocketAddrs) -> Result<()> {
@@ -44,6 +44,8 @@ async fn connection_loop(mut broker: Sender<Event>, stream: TcpStream) -> Result
         None => Err("peer disconnected immediately")?,
         Some(line) => line?,
     };
+
+    println!("{} has connected.", name);
 
     let (_shutdown_sender, shutdown_receiver) = mpsc::unbounded();
 
