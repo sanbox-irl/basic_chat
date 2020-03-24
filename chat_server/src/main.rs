@@ -4,6 +4,7 @@ use async_std::{
     prelude::*,
     task,
 };
+use chat_shared::Message;
 use futures::{channel::mpsc, select, sink::SinkExt, FutureExt};
 use std::collections::hash_map::{Entry, HashMap};
 use std::sync::Arc;
@@ -61,26 +62,25 @@ async fn connection_loop(mut broker: Sender<Event>, stream: TcpStream) -> Result
     // Business Logic
     while let Some(line) = lines.next().await {
         let line = line?;
-        let (dest, msg) = match line.find(':') {
-            None => continue,
-            Some(idx) => (&line[..idx], line[idx + 1..].trim()),
-        };
-        let dest: Vec<String> = dest
-            .split(',')
-            .map(|name| name.trim().to_string())
-            .collect();
-        let msg: String = msg.to_string();
 
-        broker
-            .send(Event::Message {
-                // 4
-                from: name.clone(),
-                to: dest,
-                msg,
-            })
-            .await
-            .unwrap();
+        match serde_json::from_str(&line) {
+            Ok(message) => {
+                println!("Got message! {:?}", message);
+
+                broker
+                    .send(Event::Message {
+                        from: name.clone(),
+                        message,
+                    })
+                    .await
+                    .unwrap();
+            }
+            Err(e) => {
+                println!("Error reading...{}", e);
+            }
+        }
     }
+
     Ok(())
 }
 
@@ -104,10 +104,10 @@ async fn broker_loop(events: Receiver<Event>) -> Result<()> {
         };
 
         match event {
-            Event::Message { from, to, msg } => {
-                for addr in to {
+            Event::Message { from, message } => {
+                for addr in message.targets {
                     if let Some(peer) = peers.get_mut(&addr) {
-                        let msg = format!("from {}: {}\n", from, msg);
+                        let msg = format!("from {}: {}\n", from, message.message);
                         peer.send(msg).await.unwrap();
                     }
                 }
@@ -177,8 +177,7 @@ enum Event {
     },
     Message {
         from: String,
-        to: Vec<String>,
-        msg: String,
+        message: Message,
     },
 }
 
